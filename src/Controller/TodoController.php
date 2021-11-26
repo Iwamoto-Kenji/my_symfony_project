@@ -2,16 +2,18 @@
 
 namespace App\Controller;
 
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
-class TodoController
+class TodoController extends AbstractController
 {
     /**
-     * @Route("/todo", name="todo") # ※1
+     * @Route("/todo", name="todo")
      */
-    public function index() # ※2
+    public function index()
     {
-        return new Response('hello world'); # ※3
+        return $this->render('todo.html.twig');
     }
 }

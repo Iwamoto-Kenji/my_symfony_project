@@ -1,1 +1,13 @@
-hello world twig
+{% extends 'base.html.twig' %}
+
+{% block title %}
+    hello
+{% endblock %}
+
+{% block body %}
+    {% if flg %}
+        {% for num in nums %}
+            {{ message }} world {{ num }}
+        {% endfor %}
+    {% endif %}
+{% endblock %}

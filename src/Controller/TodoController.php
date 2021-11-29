@@ -2,42 +2,97 @@
 
 namespace App\Controller;
 
+use App\Entity\Todo;
 use App\Form\Type\TodoType;
+use App\Repository\TodoRepository;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 
 class TodoController extends AbstractController
 {
     /**
+     * @var TodoRepository
+     */
+    private $todoRepository;
+
+    public function __construct(TodoRepository $todoRepository)
+    {
+        $this->todoRepository = $todoRepository;
+    }
+
+    /**
      * @Route("/todo", name="todo")
+     * @Template("todo.html.twig")
      */
     public function index()
     {
-        return $this->render('todo.html.twig', [
-                        'message' => 'hello',
-                        'nums' => [1,2,3],
-                        'flg' => true,
-        ]);
+        $todoList = $this->todoRepository->findBy([], ['id' => 'desc']);
+
+        return [
+            'todoList' => $todoList
+        ];
     }
 
      /**
      * @Route("/todo/create", name="todo_create")
+     * @Route("/todo/{id}/edit", name="todo_edit", requirements={"id" = "\d+"})
      * @Template("create.html.twig")
      */
-    public function create(Request $request)
+    public function create(Request $request, $id = null)
     {
-        $form = $this->createForm(TodoType::class);
+        if ($id === null) {
+            $todo = new Todo();
+        } else {
+            $todo = $this->todoRepository->find($id);
+            if ($todo === null) {
+                throw new NotFoundHttpException();
+            }
+        }
+        $form = $this->createForm(TodoType::class, $todo);
         $form->handleRequest($request);
         
         if ($form->isSubmitted() && $form->isValid()) {
-            // do something
+            $todo = $form->getData();
+            $entityManager = $this->getDoctrine()->getManager();
+            $entityManager->persist($todo);
+            $entityManager->flush();
+
+            $operation = $id ? '更新' : '登録';
+            $this->addFlash('success', $operation.'しました。');
+
+            return $this->redirectToRoute('todo_edit', ['id' => $todo->getId()]);
         }
 
         return [
-            'form' => $form->createView()
+            'form' => $form->createView(),
+            'todo' => $todo,
         ];
+    }
+
+    /**
+     * @Route("/todo/{id}/remove", name="todo_remove", requirements={"id" = "\d+"}, methods={"POST"})
+     */
+    public function remove(Request $request, $id)
+    {
+        $token = $request->headers->get('x-csrf-token');
+        if (!$this->isCsrfTokenValid('x-csrf-token', $token)) {
+            throw new BadRequestHttpException();
+        }
+
+        $todo = $this->todoRepository->find($id);
+        if ($todo == null) {
+            throw new NotFoundHttpException();
+        }
+
+        $entityManager = $this->getDoctrine()->getManager();
+        $entityManager->remove($todo);
+        $entityManager->flush();
+
+        return $this->json(['success' => true]);
     }
 }
